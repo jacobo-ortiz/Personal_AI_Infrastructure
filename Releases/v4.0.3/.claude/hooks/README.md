@@ -62,7 +62,6 @@ Hooks are TypeScript scripts that execute at specific lifecycle events in Claude
 │         ├──► ResponseTabReset (tab title/color reset)              │
 │         ├──► VoiceCompletion (TTS voice line)                      │
 │         ├──► DocIntegrity (cross-ref checks)                       │
-│         └──► AlgorithmTab (phase + progress in tab)                │
 │                                                                     │
 │  SessionEnd ──┬──► WorkCompletionLearning (insight extraction)      │
 │               ├──► SessionCleanup (work completion + state clear)   │
@@ -157,7 +156,6 @@ interface StopPayload extends BasePayload {
 | `LastResponseCache.hook.ts` | Cache last response for RatingCapture bridge | No | None |
 | `ResponseTabReset.hook.ts` | Reset Kitty tab title/color after response | No | Kitty terminal |
 | `VoiceCompletion.hook.ts` | Send 🗣️ voice line to TTS server | No | Voice Server |
-| `AlgorithmTab.hook.ts` | Show Algorithm phase + progress in tab | No | `work.json` |
 | `DocIntegrity.hook.ts` | Cross-ref + semantic drift checks | No | Inference API |
 
 ### SessionEnd Hooks

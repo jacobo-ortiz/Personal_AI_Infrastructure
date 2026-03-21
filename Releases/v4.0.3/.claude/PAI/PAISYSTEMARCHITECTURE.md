@@ -23,7 +23,7 @@ USER CUSTOMIZATIONS GO IN: USER/ARCHITECTURE.md
 
 **The Founding Principles and Universal Architecture Patterns for Personal AI Infrastructure**
 
-This document defines the foundational architecture that applies to ALL PAI implementations. For user-specific customizations, see `USER/ARCHITECTURE.md`.
+This document defines the foundational architecture that applies to ALL PAI implementations. For user-specific customizations, see the `PAI/USER/` directory.
 
 ---
 
@@ -296,7 +296,7 @@ Brief description.
 - **No nested workflows**: Flat structure under `Workflows/`
 - **Personal vs System**: `_ALLCAPS` = personal (never share), `TitleCase` = system (shareable)
 
-**Full documentation:** `SYSTEM/SKILLSYSTEM.md`
+**Full documentation:** `PAI/SKILLSYSTEM.md`
 
 ---
 
@@ -369,7 +369,7 @@ MEMORY/
 YYYY-MM-DD-HHMMSS_[TYPE]_[description].md
 ```
 
-**Full documentation:** `SYSTEM/MEMORYSYSTEM.md`
+**Full documentation:** `PAI/MEMORYSYSTEM.md`
 
 ---
 
@@ -393,7 +393,7 @@ YYYY-MM-DD-HHMMSS_[TYPE]_[description].md
 
 ### Event Routing
 
-Route notifications based on event type and priority. User-specific configuration in `USER/ARCHITECTURE.md`.
+Route notifications based on event type and priority. User-specific configuration in the `PAI/USER/` directory.
 
 ---
 
@@ -514,7 +514,7 @@ The System skill runs in the foreground so you can see all output, progress, and
 - **Privacy Validation:** After working with USER/WORK content, before public commits
 - **Documentation:** End of significant work sessions, after creating new skills
 
-**Full documentation:** `skills/_SYSTEM/SKILL.md`
+**System integrity** is handled by `IntegrityCheck.hook.ts` and `DocIntegrity.hook.ts`.
 
 ---
 
@@ -531,12 +531,11 @@ The System skill runs in the foreground so you can see all output, progress, and
 
 ## Updates
 
-System-level updates are tracked in `SYSTEM/UPDATES/` as individual files.
-User-specific updates are tracked in `USER/UPDATES/`.
+System changes are tracked via git history and `MEMORY/PAISYSTEMUPDATES/`.
 
 ---
 
-**This is a TEMPLATE.** User-specific implementation details belong in `USER/ARCHITECTURE.md`.
+**This is a TEMPLATE.** User-specific implementation details belong in the `PAI/USER/` directory.
 
 ---
 

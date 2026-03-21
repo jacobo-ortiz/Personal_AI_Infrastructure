@@ -386,7 +386,7 @@ When adding a new utility tool to this system:
    - When to use triggers
    - Environment variables (if any)
 
-3. **Update PAI/SKILL.md:** Ensure SYSTEM/TOOLS.md is in the documentation index
+3. **Update PAI/SKILL.md:** Ensure PAI/TOOLS.md is in the documentation index
 
 4. **Test:** Verify tool works from new location
 

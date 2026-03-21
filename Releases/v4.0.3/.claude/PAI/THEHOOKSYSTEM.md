@@ -160,7 +160,7 @@ Claude Code supports the following hook events:
 - Updates Kitty terminal tab title with task summary + `…` suffix
 - Sets tab to **orange background** (working state)
 - Announces via voice server with context-appropriate gerund
-- See `TERMINALTABS.md` for full state system documentation
+- See tab state architecture in the Quick Reference Card section below
 - **Inference:** `import { inference } from '../PAI/Tools/Inference'` → `inference({ level: 'fast' })`
 
 **SessionAutoName.hook.ts** - Automatic Session Naming
@@ -187,8 +187,7 @@ Claude Code supports the following hook events:
         { "type": "command", "command": "${PAI_DIR}/hooks/LastResponseCache.hook.ts" },
         { "type": "command", "command": "${PAI_DIR}/hooks/ResponseTabReset.hook.ts" },
         { "type": "command", "command": "${PAI_DIR}/hooks/VoiceCompletion.hook.ts" },
-        { "type": "command", "command": "${PAI_DIR}/hooks/DocIntegrity.hook.ts" },
-        { "type": "command", "command": "${PAI_DIR}/hooks/AlgorithmTab.hook.ts" }
+        { "type": "command", "command": "${PAI_DIR}/hooks/DocIntegrity.hook.ts" }
       ]
     }
   ]
@@ -212,14 +211,11 @@ Each Stop hook is a self-contained `.hook.ts` file that reads stdin via shared `
 - Voice gate: only main sessions (checks `kitty-sessions/{sessionId}.json`)
 - Subagents have no kitty-sessions file → voice blocked
 
-**`AlgorithmTab.hook.ts`** — Show Algorithm phase + progress in Kitty tab title
-- Reads `work.json`, finds most recently updated active session, sets tab title
-
 **`DocIntegrity.hook.ts`** — Cross-reference + semantic drift checks
 - Calls `handlers/DocCrossRefIntegrity.ts` — deterministic + inference-powered doc updates
 - Self-gating: returns instantly when no system files were modified
 
-**Tab State System:** See `TERMINALTABS.md` for complete documentation
+**Tab State System:** See tab state architecture in the Quick Reference Card section below
 
 ---
 
@@ -603,7 +599,7 @@ else if (hookData.cwd && hookData.cwd.includes('/agents/')) {
 - 🧠 Brain - AI inference in progress (Haiku/Sonnet thinking)
 - ⚙️ Gear - Processing/working state
 
-**Full Documentation:** See `~/.claude/PAI/TERMINALTABS.md`
+**Full Documentation:** See tab state architecture in the Quick Reference Card section below
 
 ---
 
@@ -876,9 +872,13 @@ tail ~/.claude/MEMORY/RAW/$(date +%Y-%m)/$(date +%Y-%m-%d)_all-events.jsonl
 
 **Original Issue:** Stop events were not firing consistently in earlier Claude Code versions, causing voice notifications and work capture to fail silently.
 
-**Resolution:** Fixed in Claude Code updates. The Stop hooks now fires reliably. The unified orchestrator pattern (`Stop hooks.hook.ts` delegating to `handlers/`) was implemented in part to work around this — and remains the production architecture.
+**Resolution:** Fixed in Claude Code updates. Stop events now fire reliably. The 4 individual Stop hooks handle all post-response work:
+- `LastResponseCache.hook.ts` — Cache response for RatingCapture bridge
+- `ResponseTabReset.hook.ts` — Reset tab title/color after response
+- `VoiceCompletion.hook.ts` — Voice TTS (main sessions only)
+- `DocIntegrity.hook.ts` — Cross-ref + semantic drift checks
 
-**Status:** RESOLVED — Stop events now fire reliably. Stop hooks handles all post-response work.
+**Status:** RESOLVED — Stop events now fire reliably.
 
 ---
 
@@ -963,7 +963,10 @@ Hooks in same event execute **sequentially** in order defined in settings.json:
   "Stop": [
     {
       "hooks": [
-        { "command": "${PAI_DIR}/hooks/Stop hooks.hook.ts" }  // Single orchestrator
+        { "command": "${PAI_DIR}/hooks/LastResponseCache.hook.ts" },
+        { "command": "${PAI_DIR}/hooks/ResponseTabReset.hook.ts" },
+        { "command": "${PAI_DIR}/hooks/VoiceCompletion.hook.ts" },
+        { "command": "${PAI_DIR}/hooks/DocIntegrity.hook.ts" }
       ]
     }
   ]
@@ -1085,7 +1088,7 @@ HOOK LIFECYCLE:
 6. Hook exits 0 (always succeeds)
 7. Claude Code continues
 
-HOOKS BY EVENT (22 hooks total):
+HOOKS BY EVENT (20 hooks total):
 
 SESSION START (2 hooks):
   KittyEnvPersist.hook.ts        Persist Kitty env vars + tab reset
@@ -1103,12 +1106,11 @@ USER PROMPT SUBMIT (3 hooks):
   UpdateTabTitle.hook.ts         Tab title + working state (orange)
   SessionAutoName.hook.ts        Auto-name session from first prompt
 
-STOP (5 hooks):
+STOP (4 hooks):
   LastResponseCache.hook.ts      Cache response for RatingCapture bridge
   ResponseTabReset.hook.ts       Tab title/color reset after response
   VoiceCompletion.hook.ts        Voice TTS (main sessions only)
   DocIntegrity.hook.ts           Cross-ref + semantic drift checks
-  AlgorithmTab.hook.ts           Algorithm phase + progress in tab
 
 PRE TOOL USE (4 hooks):
   SecurityValidator.hook.ts      Security validation [Bash, Edit, Write, Read]
@@ -1122,13 +1124,11 @@ POST TOOL USE (2 hooks):
 
 KEY FILES:
 ~/.claude/settings.json              Hook configuration
-~/.claude/hooks/                     Hook scripts (22 files)
+~/.claude/hooks/                     Hook scripts (20 files)
 ~/.claude/hooks/handlers/            Handler modules (6 files)
-~/.claude/hooks/lib/                 Shared libraries (13 files)
+~/.claude/hooks/lib/                 Shared libraries (11 files)
 ~/.claude/hooks/lib/learning-utils.ts Learning categorization
 ~/.claude/hooks/lib/time.ts          PST timestamp utilities
-~/.claude/hooks/lib/event-types.ts   Typed event definitions (22 interfaces)
-~/.claude/hooks/lib/event-emitter.ts appendEvent() → events.jsonl
 ~/.claude/MEMORY/WORK/               Work tracking
 ~/.claude/MEMORY/LEARNING/           Learning captures
 ~/.claude/MEMORY/STATE/              Runtime state
@@ -1252,23 +1252,9 @@ interface InferenceResult {
 
 Alongside existing filesystem state writes (algorithm-state JSON, PRDs, session-names.json, etc.), hooks can emit structured events to a single append-only JSONL log. This provides a unified observability layer without replacing any existing state management.
 
-### Components
-
-| File | Purpose |
-|------|---------|
-| `${PAI_DIR}/hooks/lib/event-types.ts` | TypeScript discriminated union of all PAI event types (22 interfaces covering algorithm, work, session, rating, learning, voice, PRD, doc, build, system, tab, hook error, and custom events) |
-| `${PAI_DIR}/hooks/lib/event-emitter.ts` | `appendEvent()` utility that writes typed events to `${PAI_DIR}/MEMORY/STATE/events.jsonl` |
-
 ### Usage in Hooks
 
-Hooks call `appendEvent()` as a secondary write **alongside** their existing state writes. The emitter is synchronous, fire-and-forget, and silently swallows errors so it never blocks or crashes a hook.
-
-```typescript
-import { appendEvent } from './lib/event-emitter';
-
-// Inside an existing hook, AFTER the normal state write:
-appendEvent({ type: 'work.created', source: 'PRDSync', slug: 'my-task' });
-```
+Hooks emit structured events as a secondary write **alongside** their existing state writes. Event emission is synchronous, fire-and-forget, and silently swallows errors so it never blocks or crashes a hook.
 
 ### Event Structure
 
@@ -1309,8 +1295,7 @@ tail -f ~/.claude/MEMORY/STATE/events.jsonl | jq 'select(.type | startswith("alg
 
 # Programmatic (Node/Bun fs.watch)
 import { watch } from 'fs';
-import { getEventsPath } from './hooks/lib/event-emitter';
-watch(getEventsPath(), (eventType) => { /* read new lines */ });
+watch('~/.claude/MEMORY/STATE/events.jsonl', (eventType) => { /* read new lines */ });
 ```
 
 ### Key Principles
@@ -1323,5 +1308,5 @@ watch(getEventsPath(), (eventType) => { /* read new lines */ });
 ---
 
 **Last Updated:** 2026-02-25
-**Status:** Production - 15 hooks emitting 22 event types across 14 categories
+**Status:** Production - 14 hooks emitting 22 event types across 14 categories
 **Maintainer:** PAI System

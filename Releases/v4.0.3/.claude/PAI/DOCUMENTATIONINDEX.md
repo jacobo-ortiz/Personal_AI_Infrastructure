@@ -67,7 +67,7 @@ See `SKILLSYSTEM.md` for complete documentation.
 **Configuration & Systems:**
 - `THEHOOKSYSTEM.md` - Hook configuration | Triggers: "hooks configuration", "create custom hooks"
 - `MEMORYSYSTEM.md` - Memory documentation | Triggers: "memory system", "capture system", "work tracking", "session history"
-- `TERMINALTABS.md` - Terminal tab state system (colors + suffixes for working/completed/awaiting/error states) | Triggers: "tab colors", "tab state", "kitty tabs"
+- `THEHOOKSYSTEM.md` (Quick Reference Card section) - Terminal tab state system (colors + suffixes for working/completed/awaiting/error states) | Triggers: "tab colors", "tab state", "kitty tabs"
 
 **Reference Data:**
 - `USER/ASSETMANAGEMENT.md` - Digital assets registry for instant recognition & vulnerability management | ⭐ CRITICAL | Triggers: "my site", "vulnerability", "what uses React", "upgrade path", "tech stack"

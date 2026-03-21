@@ -95,7 +95,7 @@ curl -s -X POST http://localhost:8888/notify \
 | Deep | <32min | All phase curls |
 | Comprehensive | <120min | All phase curls |
 
-**Task completion voice** is handled by `StopOrchestrator.hook.ts` → `handlers/VoiceNotification.ts`, which extracts the `🗣️` line from the response and POSTs to the voice server.
+**Task completion voice** is handled by `VoiceCompletion.hook.ts`, which extracts the `🗣️` line from the response and POSTs to the voice server. Stop hooks run as 4 independent hooks: `LastResponseCache`, `ResponseTabReset`, `VoiceCompletion`, and `DocIntegrity`.
 
 ---
 
@@ -293,7 +293,7 @@ await sendDiscord("Message", { title: "Title", color: 0x00ff00 });
 
 In addition to the voice, push, and Discord channels above, PAI hooks emit structured events to `${PAI_DIR}/MEMORY/STATE/events.jsonl`. This is an append-only JSONL file where each line is a typed event (e.g., `algorithm.phase`, `work.created`, `rating.captured`, `voice.sent`). It serves as a unified observability channel that any process can consume by tailing or watching the file.
 
-Events are emitted via `appendEvent()` from `${PAI_DIR}/hooks/lib/event-emitter.ts`, which is synchronous and fire-and-forget. The event type system is defined in `${PAI_DIR}/hooks/lib/event-types.ts` as a TypeScript discriminated union covering 22 event interfaces. This channel is additive -- it does not replace any of the notification channels above, and hooks emit events alongside their existing state writes and notifications.
+Events are appended synchronously in a fire-and-forget manner. This channel is additive -- it does not replace any of the notification channels above, and hooks emit events alongside their existing state writes and notifications.
 
 ---
 
