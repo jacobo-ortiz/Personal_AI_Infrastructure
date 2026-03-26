@@ -35,8 +35,39 @@ const BANNER_SCRIPT = join(CLAUDE_DIR, "PAI", "Tools", "Banner.ts");
 const VOICE_SERVER = "http://localhost:8888/notify/personality";
 const WALLPAPER_DIR = join(homedir(), "Projects", "Wallpaper");
 // Note: RAW archiving removed - Claude Code handles its own cleanup (30-day retention in projects/)
+const PAI_USER_DIR = join(CLAUDE_DIR, "PAI", "USER");
+
+// Merge (not replace) USER overrides over SYSTEM defaults for additive lookup tables.
+// See PAI/SYSTEM_USER_EXTENDABILITY.md for the two-tier pattern.
+function loadUserConfig(
+  filename: string,
+  systemDefaults: Record<string, string>
+): Record<string, string> {
+  const userPath = join(PAI_USER_DIR, filename);
+  try {
+    const raw = readFileSync(userPath, "utf-8");
+    const parsed = JSON.parse(raw);
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      console.error(`⚠️  ${filename}: expected object. Using defaults.`);
+      return systemDefaults;
+    }
+    return { ...systemDefaults, ...parsed };
+  } catch (e: unknown) {
+    // ENOENT (no user file) is the common case — silent fallback.
+    // Parse errors get a warning so the user knows their file is broken.
+    const code = e && typeof e === "object" && "code" in e ? (e as any).code : null;
+    if (code !== "ENOENT") {
+      const msg = e instanceof Error ? e.message : "parse error";
+      console.error(`⚠️  ${filename}: ${msg}. Using defaults.`);
+    }
+    return systemDefaults;
+  }
+}
 
 // MCP shorthand mappings
+// TODO(#901): MCP config in settings.json is silently ignored by Claude Code.
+// Claude Code reads from .mcp.json (project) or ~/.claude.json (global).
+// pai.ts correctly writes to .mcp.json via symlink. See issues #901, #646.
 const MCP_SHORTCUTS: Record<string, string> = {
   bd: "Brightdata-MCP.json",
   brightdata: "Brightdata-MCP.json",
@@ -66,6 +97,15 @@ const PROFILE_DESCRIPTIONS: Record<string, string> = {
   clickup: "Official ClickUp MCP (tasks, time tracking, docs)",
   full: "All available MCPs",
 };
+
+// Merged accessors — USER overrides SYSTEM for both maps
+function getMcpShortcuts(): Record<string, string> {
+  return loadUserConfig("MCP_SHORTCUTS.json", MCP_SHORTCUTS);
+}
+
+function getProfileDescriptions(): Record<string, string> {
+  return loadUserConfig("PROFILE_DESCRIPTIONS.json", PROFILE_DESCRIPTIONS);
+}
 
 // ============================================================================
 // Utilities
@@ -234,9 +274,10 @@ function setMcpProfile(profile: string) {
 
 function setMcpCustom(mcpNames: string[]) {
   const files: string[] = [];
+  const shortcuts = getMcpShortcuts();
 
   for (const name of mcpNames) {
-    const file = MCP_SHORTCUTS[name.toLowerCase()];
+    const file = shortcuts[name.toLowerCase()];
     if (file) {
       files.push(file);
     } else {
@@ -507,10 +548,11 @@ function cmdProfiles() {
 
   const current = getCurrentProfile();
   const profiles = getMcpProfiles();
+  const descriptions = getProfileDescriptions();
 
   for (const profile of profiles) {
     const isCurrent = profile === current;
-    const desc = PROFILE_DESCRIPTIONS[profile] || "";
+    const desc = descriptions[profile] || "";
     const marker = isCurrent ? "→ " : "  ";
     const badge = isCurrent ? " (active)" : "";
     console.log(`${marker}${profile}${badge}`);
@@ -528,8 +570,9 @@ function cmdMcpList() {
   // Individual MCPs
   log("Individual MCPs (use with -m):", "📦");
   const mcps = getIndividualMcps();
+  const allShortcuts = getMcpShortcuts();
   for (const mcp of mcps) {
-    const shortcut = Object.entries(MCP_SHORTCUTS)
+    const shortcut = Object.entries(allShortcuts)
       .filter(([_, v]) => v === `${mcp}-MCP.json`)
       .map(([k]) => k);
     const shortcuts = shortcut.length > 0 ? ` (${shortcut.join(", ")})` : "";
@@ -539,8 +582,9 @@ function cmdMcpList() {
   console.log();
   log("Profiles (use with 'k mcp set'):", "📁");
   const profiles = getMcpProfiles();
+  const allDescriptions = getProfileDescriptions();
   for (const profile of profiles) {
-    const desc = PROFILE_DESCRIPTIONS[profile] || "";
+    const desc = allDescriptions[profile] || "";
     console.log(`  ${profile}${desc ? ` - ${desc}` : ""}`);
   }
 
